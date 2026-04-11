@@ -49,13 +49,15 @@ export function equatorialToHorizontal(
   return { alt, az };
 }
 
+const DEFAULT_OBSERVER = new Astronomy.Observer(0, 0, 0);
+
 // 惑星の赤道座標を取得
 export function getPlanetPosition(planetId: string, date: Date): { ra: number; dec: number; mag: number } | null {
   const body = PLANET_BODY_MAP[planetId];
   if (!body) return null;
 
   const time = Astronomy.MakeTime(date);
-  const eq = Astronomy.Equator(body, time, null as unknown as Astronomy.Observer, true, true);
+  const eq = Astronomy.Equator(body, time, DEFAULT_OBSERVER, true, true);
   const illum = Astronomy.Illumination(body, time);
 
   return {
@@ -68,14 +70,14 @@ export function getPlanetPosition(planetId: string, date: Date): { ra: number; d
 // 太陽の位置
 export function getSunPosition(date: Date): { ra: number; dec: number } {
   const time = Astronomy.MakeTime(date);
-  const eq = Astronomy.Equator(Astronomy.Body.Sun, time, null as unknown as Astronomy.Observer, true, true);
+  const eq = Astronomy.Equator(Astronomy.Body.Sun, time, DEFAULT_OBSERVER, true, true);
   return { ra: eq.ra, dec: eq.dec };
 }
 
 // 月の位置
 export function getMoonPosition(date: Date): { ra: number; dec: number } {
   const time = Astronomy.MakeTime(date);
-  const eq = Astronomy.Equator(Astronomy.Body.Moon, time, null as unknown as Astronomy.Observer, true, true);
+  const eq = Astronomy.Equator(Astronomy.Body.Moon, time, DEFAULT_OBSERVER, true, true);
   return { ra: eq.ra, dec: eq.dec };
 }
 
@@ -207,7 +209,7 @@ export function projectStar(
   const dAlt = pos.alt - centerAlt;
 
   // 正規化
-  let normalizedDAz = ((dAz + 180) % 360) - 180;
+  const normalizedDAz = ((dAz + 180) % 360) - 180;
 
   // FOV内かチェック
   const halfFov = fov / 2;

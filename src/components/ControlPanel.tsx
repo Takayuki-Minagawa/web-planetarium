@@ -46,8 +46,11 @@ export default function ControlPanel() {
     );
   };
 
-  // 日時フォーマット
-  const dateStr = dateTime.toISOString().slice(0, 10);
+  // 日時フォーマット（ローカルタイムゾーンで表示）
+  const year = dateTime.getFullYear();
+  const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+  const day = String(dateTime.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
   const timeStr = dateTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
   return (

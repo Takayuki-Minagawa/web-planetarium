@@ -11,6 +11,7 @@ import {
   equatorialToHorizontal,
 } from '../utils/astronomy';
 import { planets } from '../data/planets';
+import type { CelestialBody } from '../types/celestial';
 
 export default function SkyCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -31,61 +32,6 @@ export default function SkyCanvas() {
     setSelectedBody,
   } = useAppStore();
 
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    const w = rect.width;
-    const h = rect.height;
-
-    // 空の状態で背景色を変える
-    const skyState = getSkyState(dateTime, location);
-    let bgColor: string;
-    switch (skyState) {
-      case 'night': bgColor = `rgba(5, 5, 20, ${1 - skySettings.backgroundBrightness * 0.5})`; break;
-      case 'astronomical_twilight': bgColor = '#0a0a2e'; break;
-      case 'nautical_twilight': bgColor = '#1a1a4e'; break;
-      case 'civil_twilight': bgColor = '#2a3a6e'; break;
-      case 'day': bgColor = '#4a7ab5'; break;
-    }
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, w, h);
-
-    // グリッド描画
-    if (skySettings.showGrid) {
-      drawGrid(ctx, w, h);
-    }
-
-    // 地平線
-    if (skySettings.showHorizon) {
-      drawHorizon(ctx, w, h);
-    }
-
-    // 星座線
-    if (skySettings.showConstellationLines) {
-      drawConstellationLines(ctx, w, h);
-    }
-
-    // 恒星描画
-    drawStars(ctx, w, h);
-
-    // 惑星描画
-    drawPlanets(ctx, w, h);
-
-    // 月描画
-    drawMoon(ctx, w, h);
-
-    // 方位表示
-    drawCardinalDirections(ctx, w, h);
-  }, [dateTime, location, skySettings, centerAz, centerAlt, fov]);
-
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
     ctx.strokeStyle = 'rgba(100, 150, 255, 0.1)';
     ctx.lineWidth = 0.5;
@@ -95,7 +41,7 @@ export default function SkyCanvas() {
       for (let alt = -10; alt <= 90; alt += 5) {
         const dAz = az - centerAz;
         const dAlt = alt - centerAlt;
-        let normalizedDAz = ((dAz + 180) % 360) - 180;
+        const normalizedDAz = ((dAz + 180) % 360) - 180;
         const halfFov = fov / 2;
         const aspectRatio = w / h;
         const x = w / 2 + (normalizedDAz / (halfFov * aspectRatio)) * (w / 2);
@@ -114,7 +60,7 @@ export default function SkyCanvas() {
       for (let az = centerAz - fov; az <= centerAz + fov; az += 1) {
         const dAz = az - centerAz;
         const dAlt = alt - centerAlt;
-        let normalizedDAz = ((dAz + 180) % 360) - 180;
+        const normalizedDAz = ((dAz + 180) % 360) - 180;
         const halfFov = fov / 2;
         const aspectRatio = w / h;
         const x = w / 2 + (normalizedDAz / (halfFov * aspectRatio)) * (w / 2);
@@ -346,7 +292,7 @@ export default function SkyCanvas() {
     const aspectRatio = w / h;
 
     for (const dir of directions) {
-      let dAz = ((dir.az - centerAz + 180) % 360) - 180;
+      const dAz = ((dir.az - centerAz + 180) % 360) - 180;
       const x = w / 2 + (dAz / (halfFov * aspectRatio)) * (w / 2);
       const dAlt = 0 - centerAlt;
       const y = h / 2 - (dAlt / halfFov) * (h / 2);
@@ -361,6 +307,62 @@ export default function SkyCanvas() {
       }
     }
   }, [centerAz, centerAlt, fov]);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const w = rect.width;
+    const h = rect.height;
+
+    // 空の状態で背景色を変える
+    const skyState = getSkyState(dateTime, location);
+    let bgColor: string;
+    switch (skyState) {
+      case 'night': bgColor = `rgba(5, 5, 20, ${1 - skySettings.backgroundBrightness * 0.5})`; break;
+      case 'astronomical_twilight': bgColor = '#0a0a2e'; break;
+      case 'nautical_twilight': bgColor = '#1a1a4e'; break;
+      case 'civil_twilight': bgColor = '#2a3a6e'; break;
+      case 'day': bgColor = '#4a7ab5'; break;
+    }
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, w, h);
+
+    // グリッド描画
+    if (skySettings.showGrid) {
+      drawGrid(ctx, w, h);
+    }
+
+    // 地平線
+    if (skySettings.showHorizon) {
+      drawHorizon(ctx, w, h);
+    }
+
+    // 星座線
+    if (skySettings.showConstellationLines) {
+      drawConstellationLines(ctx, w, h);
+    }
+
+    // 恒星描画
+    drawStars(ctx, w, h);
+
+    // 惑星描画
+    drawPlanets(ctx, w, h);
+
+    // 月描画
+    drawMoon(ctx, w, h);
+
+    // 方位表示
+    drawCardinalDirections(ctx, w, h);
+  }, [dateTime, location, skySettings,
+      drawGrid, drawHorizon, drawConstellationLines, drawStars, drawPlanets, drawMoon, drawCardinalDirections]);
 
   // ドラッグ操作
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -401,7 +403,7 @@ export default function SkyCanvas() {
     const w = rect.width;
     const h = rect.height;
 
-    let closest: { id: string; dist: number; body: any } | null = null;
+    let closest: { id: string; dist: number; body: CelestialBody } | null = null;
 
     // 恒星チェック
     for (const star of stars) {
