@@ -95,7 +95,7 @@ export default function Sidebar() {
   };
 
   const handleSelectPlanet = (planet: typeof planets[0]) => {
-    const pos = getPlanetPosition(planet.id, dateTime);
+    const pos = getPlanetPosition(planet.id, dateTime, location);
     if (!pos) return;
     const horizPos = equatorialToHorizontal(pos.ra, pos.dec, dateTime, location);
     setCenterAz(horizPos.az);
@@ -116,7 +116,7 @@ export default function Sidebar() {
   };
 
   const handleSelectSpecial = (body: typeof specialBodies[0]) => {
-    const pos = body.id === 'sun' ? getSunPosition(dateTime) : getMoonPosition(dateTime);
+    const pos = body.id === 'sun' ? getSunPosition(dateTime, location) : getMoonPosition(dateTime, location);
     const horizPos = equatorialToHorizontal(pos.ra, pos.dec, dateTime, location);
     setCenterAz(horizPos.az);
     setCenterAlt(Math.max(0, horizPos.alt));

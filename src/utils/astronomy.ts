@@ -49,15 +49,17 @@ export function equatorialToHorizontal(
   return { alt, az };
 }
 
-const DEFAULT_OBSERVER = new Astronomy.Observer(0, 0, 0);
+function makeObserver(location: ObserverLocation): Astronomy.Observer {
+  return new Astronomy.Observer(location.latitude, location.longitude, 0);
+}
 
 // 惑星の赤道座標を取得
-export function getPlanetPosition(planetId: string, date: Date): { ra: number; dec: number; mag: number } | null {
+export function getPlanetPosition(planetId: string, date: Date, location: ObserverLocation): { ra: number; dec: number; mag: number } | null {
   const body = PLANET_BODY_MAP[planetId];
   if (!body) return null;
 
   const time = Astronomy.MakeTime(date);
-  const eq = Astronomy.Equator(body, time, DEFAULT_OBSERVER, true, true);
+  const eq = Astronomy.Equator(body, time, makeObserver(location), true, true);
   const illum = Astronomy.Illumination(body, time);
 
   return {
@@ -68,16 +70,16 @@ export function getPlanetPosition(planetId: string, date: Date): { ra: number; d
 }
 
 // 太陽の位置
-export function getSunPosition(date: Date): { ra: number; dec: number } {
+export function getSunPosition(date: Date, location: ObserverLocation): { ra: number; dec: number } {
   const time = Astronomy.MakeTime(date);
-  const eq = Astronomy.Equator(Astronomy.Body.Sun, time, DEFAULT_OBSERVER, true, true);
+  const eq = Astronomy.Equator(Astronomy.Body.Sun, time, makeObserver(location), true, true);
   return { ra: eq.ra, dec: eq.dec };
 }
 
 // 月の位置
-export function getMoonPosition(date: Date): { ra: number; dec: number } {
+export function getMoonPosition(date: Date, location: ObserverLocation): { ra: number; dec: number } {
   const time = Astronomy.MakeTime(date);
-  const eq = Astronomy.Equator(Astronomy.Body.Moon, time, DEFAULT_OBSERVER, true, true);
+  const eq = Astronomy.Equator(Astronomy.Body.Moon, time, makeObserver(location), true, true);
   return { ra: eq.ra, dec: eq.dec };
 }
 
@@ -151,7 +153,7 @@ export function getVisibleBodies(date: Date, location: ObserverLocation): Celest
 
   // 惑星
   for (const planet of planets) {
-    const planetPos = getPlanetPosition(planet.id, date);
+    const planetPos = getPlanetPosition(planet.id, date, location);
     if (planetPos) {
       const horizPos = equatorialToHorizontal(planetPos.ra, planetPos.dec, date, location);
       bodies.push({
@@ -171,7 +173,7 @@ export function getVisibleBodies(date: Date, location: ObserverLocation): Celest
   }
 
   // 月
-  const moonPos = getMoonPosition(date);
+  const moonPos = getMoonPosition(date, location);
   const moonHoriz = equatorialToHorizontal(moonPos.ra, moonPos.dec, date, location);
   const moonPhase = getMoonPhase(date);
   bodies.push({

@@ -194,7 +194,7 @@ export default function SkyCanvas() {
     const selectedBody = useAppStore.getState().selectedBody;
 
     for (const planet of planets) {
-      const pos = getPlanetPosition(planet.id, dateTime);
+      const pos = getPlanetPosition(planet.id, dateTime, location);
       if (!pos) continue;
 
       const p = projectStar(pos.ra, pos.dec, dateTime, location, w, h, centerAz, centerAlt, fov);
@@ -239,7 +239,7 @@ export default function SkyCanvas() {
   }, [dateTime, location, centerAz, centerAlt, fov, skySettings.showPlanetNames]);
 
   const drawMoon = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    const moonPos = getMoonPosition(dateTime);
+    const moonPos = getMoonPosition(dateTime, location);
     const p = projectStar(moonPos.ra, moonPos.dec, dateTime, location, w, h, centerAz, centerAlt, fov);
     if (!p.visible || p.x < 0 || p.x > w || p.y < 0 || p.y > h) return;
 
@@ -434,7 +434,7 @@ export default function SkyCanvas() {
 
     // 惑星チェック
     for (const planet of planets) {
-      const pos = getPlanetPosition(planet.id, dateTime);
+      const pos = getPlanetPosition(planet.id, dateTime, location);
       if (!pos) continue;
       const p = projectStar(pos.ra, pos.dec, dateTime, location, w, h, centerAz, centerAlt, fov);
       if (!p.visible || p.x < 0 || p.x > w || p.y < 0 || p.y > h) continue;
