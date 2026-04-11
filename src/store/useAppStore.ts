@@ -1,7 +1,19 @@
 import { create } from 'zustand';
 import type { ObserverLocation, SkySettings, CelestialBody } from '../types/celestial';
+import type { Lang } from '../i18n/translations';
+
+type Theme = 'dark' | 'light';
 
 interface AppState {
+  // 言語
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+
+  // テーマ
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
+
   // 観測地点
   location: ObserverLocation;
   setLocation: (location: ObserverLocation) => void;
@@ -33,9 +45,18 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void;
   activeTab: 'constellations' | 'stars' | 'planets' | 'visible';
   setActiveTab: (tab: 'constellations' | 'stars' | 'planets' | 'visible') => void;
+  helpOpen: boolean;
+  setHelpOpen: (open: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  lang: 'ja',
+  setLang: (lang) => set({ lang }),
+
+  theme: 'dark',
+  setTheme: (theme) => set({ theme }),
+  toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
+
   location: { latitude: 35.6762, longitude: 139.6503, name: '東京' },
   setLocation: (location) => set({ location }),
 
@@ -60,7 +81,7 @@ export const useAppStore = create<AppState>((set) => ({
       skySettings: { ...state.skySettings, ...settings },
     })),
 
-  centerAz: 180, // 南向き
+  centerAz: 180,
   centerAlt: 45,
   fov: 120,
   setCenterAz: (centerAz) => set({ centerAz: ((centerAz % 360) + 360) % 360 }),
@@ -72,4 +93,6 @@ export const useAppStore = create<AppState>((set) => ({
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   activeTab: 'constellations',
   setActiveTab: (activeTab) => set({ activeTab }),
+  helpOpen: false,
+  setHelpOpen: (helpOpen) => set({ helpOpen }),
 }));

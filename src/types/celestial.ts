@@ -5,7 +5,9 @@ export interface Constellation {
   abbr: string;
   season: 'spring' | 'summer' | 'autumn' | 'winter' | 'all';
   description: string;
+  descriptionEn: string;
   mythology: string;
+  mythologyEn: string;
   mainStars: string[];
   lines: [string, string][];
   searchKeywords: string[];
@@ -16,11 +18,12 @@ export interface Star {
   nameJa: string;
   nameEn: string;
   constellation: string;
-  ra: number;   // 赤経 (時)
-  dec: number;  // 赤緯 (度)
-  mag: number;  // 等級
+  ra: number;
+  dec: number;
+  mag: number;
   color: string;
   description: string;
+  descriptionEn: string;
 }
 
 export interface Planet {
@@ -30,6 +33,7 @@ export interface Planet {
   symbol: string;
   color: string;
   description: string;
+  descriptionEn: string;
 }
 
 export interface CelestialBody {
@@ -44,6 +48,7 @@ export interface CelestialBody {
   mag?: number;
   isVisible?: boolean;
   description?: string;
+  descriptionEn?: string;
 }
 
 export interface ObserverLocation {

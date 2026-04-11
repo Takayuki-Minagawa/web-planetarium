@@ -186,7 +186,8 @@ export function getVisibleBodies(date: Date, location: ObserverLocation): Celest
     alt: moonHoriz.alt,
     az: moonHoriz.az,
     isVisible: moonHoriz.alt > 0,
-    description: `${moonPhase.phaseName}（輝面比 ${Math.round(moonPhase.illumination * 100)}%）`,
+    description: `${moonPhase.phaseName}（${Math.round(moonPhase.illumination * 100)}%）`,
+    descriptionEn: `${moonPhase.phaseName} (${Math.round(moonPhase.illumination * 100)}%)`,
   });
 
   return bodies;

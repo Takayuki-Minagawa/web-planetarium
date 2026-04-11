@@ -14,13 +14,14 @@ import {
   getSunTimes,
   getMoonTimes,
 } from '../utils/astronomy';
+import { t, localizedName, getMoonPhaseName } from '../i18n/translations';
 
-const SEASON_LABELS: Record<string, string> = {
-  spring: '春',
-  summer: '夏',
-  autumn: '秋',
-  winter: '冬',
-  all: '通年',
+const SEASON_KEYS: Record<string, string> = {
+  spring: 'season.spring',
+  summer: 'season.summer',
+  autumn: 'season.autumn',
+  winter: 'season.winter',
+  all: 'season.all',
 };
 
 export default function Sidebar() {
@@ -35,15 +36,18 @@ export default function Sidebar() {
     setCenterAz,
     setCenterAlt,
     selectedBody,
+    lang,
+    theme,
   } = useAppStore();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const isDark = theme === 'dark';
 
-  const tabs = [
-    { id: 'constellations' as const, label: '星座' },
-    { id: 'stars' as const, label: '恒星' },
-    { id: 'planets' as const, label: '惑星' },
-    { id: 'visible' as const, label: '見える天体' },
+  const tabs: { id: 'constellations' | 'stars' | 'planets' | 'visible'; labelKey: Parameters<typeof t>[0] }[] = [
+    { id: 'constellations', labelKey: 'tab.constellations' },
+    { id: 'stars', labelKey: 'tab.stars' },
+    { id: 'planets', labelKey: 'tab.planets' },
+    { id: 'visible', labelKey: 'tab.visible' },
   ];
 
   const handleSelectConstellation = (constellation: typeof constellations[0]) => {
@@ -72,6 +76,7 @@ export default function Sidebar() {
       az: pos.az,
       isVisible: pos.alt > 0,
       description: constellation.description,
+      descriptionEn: constellation.descriptionEn,
     });
   };
 
@@ -91,6 +96,7 @@ export default function Sidebar() {
       mag: star.mag,
       isVisible: pos.alt > 0,
       description: star.description,
+      descriptionEn: star.descriptionEn,
     });
   };
 
@@ -112,6 +118,7 @@ export default function Sidebar() {
       mag: pos.mag,
       isVisible: horizPos.alt > 0,
       description: planet.description,
+      descriptionEn: planet.descriptionEn,
     });
   };
 
@@ -122,9 +129,12 @@ export default function Sidebar() {
     setCenterAlt(Math.max(0, horizPos.alt));
 
     let description = body.description;
+    let descriptionEn = body.descriptionEn;
     if (body.id === 'moon') {
       const phase = getMoonPhase(dateTime);
-      description = `${phase.phaseName}（輝面比 ${Math.round(phase.illumination * 100)}%）`;
+      const phaseName = getMoonPhaseName(phase.phase, lang);
+      description = `${phaseName}（${Math.round(phase.illumination * 100)}%）`;
+      descriptionEn = `${getMoonPhaseName(phase.phase, 'en')} (${Math.round(phase.illumination * 100)}%)`;
     }
 
     setSelectedBody({
@@ -138,6 +148,7 @@ export default function Sidebar() {
       az: horizPos.az,
       isVisible: horizPos.alt > 0,
       description,
+      descriptionEn,
     });
   };
 
@@ -158,17 +169,32 @@ export default function Sidebar() {
   }, [searchQuery]);
 
   const visibleBodies = useMemo(() => getVisibleBodies(dateTime, location), [dateTime, location]);
-
   const sunTimes = useMemo(() => getSunTimes(dateTime, location), [dateTime, location]);
   const moonTimes = useMemo(() => getMoonTimes(dateTime, location), [dateTime, location]);
   const moonPhase = useMemo(() => getMoonPhase(dateTime), [dateTime]);
 
+  const formatTime = (d: Date | undefined) =>
+    d ? d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+
+  // Theme classes
+  const bg = isDark ? 'bg-gray-900/95' : 'bg-white/95';
+  const border = isDark ? 'border-gray-700/50' : 'border-gray-200';
+  const textMuted = isDark ? 'text-gray-400' : 'text-gray-500';
+  const textBody = isDark ? 'text-gray-300' : 'text-gray-700';
+  const hoverBg = isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100';
+  const selectedBg = isDark ? 'bg-blue-900/50 border border-blue-500/50' : 'bg-blue-50 border border-blue-300';
+  const inputBg = isDark ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400';
+  const badgeBg = isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-100 text-gray-500';
+  const cardBg = isDark ? 'bg-gray-800/50' : 'bg-gray-50';
+
   return (
     <>
-      {/* モバイル用トグルボタン */}
+      {/* Mobile toggle */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden bg-gray-800/80 backdrop-blur-sm p-2 rounded-lg border border-gray-700"
+        className={`fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg border backdrop-blur-sm ${
+          isDark ? 'bg-gray-800/80 border-gray-700 text-white' : 'bg-white/80 border-gray-200 text-gray-900'
+        }`}
       >
         {sidebarOpen ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,51 +209,51 @@ export default function Sidebar() {
 
       <div className={`
         fixed top-0 left-0 h-full z-40
-        w-80 bg-gray-900/95 backdrop-blur-md border-r border-gray-700/50
+        w-80 backdrop-blur-md border-r
         transition-transform duration-300 flex flex-col
+        ${bg} ${border}
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        {/* ヘッダー */}
-        <div className="p-4 border-b border-gray-700/50">
-          <h1 className="text-lg font-bold text-blue-300 flex items-center gap-2">
+        {/* Header */}
+        <div className={`p-4 border-b ${border}`}>
+          <h1 className={`text-lg font-bold flex items-center gap-2 ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
             <span className="text-2xl">&#11088;</span>
-            Web Planetarium
+            {t('app.title', lang)}
           </h1>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className={`text-xs mt-1 ${textMuted}`}>
             {location.name || `${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`}
           </p>
         </div>
 
-        {/* 検索 */}
+        {/* Search */}
         <div className="px-4 py-2">
           <input
             type="text"
-            placeholder="天体を検索..."
+            placeholder={t('sidebar.search', lang)}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm
-              focus:outline-none focus:border-blue-500 text-white placeholder-gray-500"
+            className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 ${inputBg}`}
           />
         </div>
 
-        {/* タブ */}
-        <div className="flex border-b border-gray-700/50">
+        {/* Tabs */}
+        <div className={`flex border-b ${border}`}>
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-2 text-xs font-medium transition-colors
                 ${activeTab === tab.id
-                  ? 'text-blue-400 border-b-2 border-blue-400'
-                  : 'text-gray-400 hover:text-gray-300'
+                  ? `${isDark ? 'text-blue-400' : 'text-blue-600'} border-b-2 ${isDark ? 'border-blue-400' : 'border-blue-600'}`
+                  : `${textMuted} ${hoverBg}`
                 }`}
             >
-              {tab.label}
+              {t(tab.labelKey, lang)}
             </button>
           ))}
         </div>
 
-        {/* コンテンツ */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'constellations' && (
             <div className="p-2">
@@ -238,16 +264,20 @@ export default function Sidebar() {
                     key={c.id}
                     onClick={() => handleSelectConstellation(c)}
                     className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
-                      isSelected ? 'bg-blue-900/50 border border-blue-500/50' : 'hover:bg-gray-800'
+                      isSelected ? selectedBg : hoverBg
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{c.nameJa}</span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-gray-700/50 text-gray-400">
-                        {SEASON_LABELS[c.season]}
+                      <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {localizedName(c.nameJa, c.nameEn, lang)}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${badgeBg}`}>
+                        {t(SEASON_KEYS[c.season] as Parameters<typeof t>[0], lang)}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{c.nameEn}</p>
+                    <p className={`text-xs mt-1 ${textMuted}`}>
+                      {lang === 'ja' ? c.nameEn : c.nameJa}
+                    </p>
                   </button>
                 );
               })}
@@ -263,17 +293,19 @@ export default function Sidebar() {
                     key={s.id}
                     onClick={() => handleSelectStar(s)}
                     className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
-                      isSelected ? 'bg-blue-900/50 border border-blue-500/50' : 'hover:bg-gray-800'
+                      isSelected ? selectedBg : hoverBg
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        <span className="font-medium text-sm">{s.nameJa}</span>
+                        <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {localizedName(s.nameJa, s.nameEn, lang)}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500">{s.mag.toFixed(1)}等</span>
+                      <span className={`text-xs ${textMuted}`}>{s.mag.toFixed(1)}{t('sidebar.magnitude', lang)}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{s.nameEn}</p>
+                    <p className={`text-xs mt-1 ${textMuted}`}>{lang === 'ja' ? s.nameEn : s.nameJa}</p>
                   </button>
                 );
               })}
@@ -282,36 +314,39 @@ export default function Sidebar() {
 
           {activeTab === 'planets' && (
             <div className="p-2">
-              {/* 太陽・月 */}
-              <p className="text-xs text-gray-500 px-3 py-1 font-medium">太陽・月</p>
+              <p className={`text-xs px-3 py-1 font-medium ${textMuted}`}>{t('sidebar.sunMoon', lang)}</p>
               {specialBodies.map(b => (
                 <button
                   key={b.id}
                   onClick={() => handleSelectSpecial(b)}
                   className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
-                    selectedBody?.id === b.id ? 'bg-blue-900/50 border border-blue-500/50' : 'hover:bg-gray-800'
+                    selectedBody?.id === b.id ? selectedBg : hoverBg
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{b.symbol}</span>
-                    <span className="font-medium text-sm">{b.nameJa}</span>
+                    <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {localizedName(b.nameJa, b.nameEn, lang)}
+                    </span>
                   </div>
                 </button>
               ))}
 
-              <p className="text-xs text-gray-500 px-3 py-1 mt-2 font-medium">惑星</p>
+              <p className={`text-xs px-3 py-1 mt-2 font-medium ${textMuted}`}>{t('sidebar.planets', lang)}</p>
               {planets.map(p => (
                 <button
                   key={p.id}
                   onClick={() => handleSelectPlanet(p)}
                   className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
-                    selectedBody?.id === p.id ? 'bg-blue-900/50 border border-blue-500/50' : 'hover:bg-gray-800'
+                    selectedBody?.id === p.id ? selectedBg : hoverBg
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-lg" style={{ color: p.color }}>{p.symbol}</span>
-                    <span className="font-medium text-sm">{p.nameJa}</span>
-                    <span className="text-xs text-gray-500">{p.nameEn}</span>
+                    <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {localizedName(p.nameJa, p.nameEn, lang)}
+                    </span>
+                    <span className={`text-xs ${textMuted}`}>{lang === 'ja' ? p.nameEn : p.nameJa}</span>
                   </div>
                 </button>
               ))}
@@ -320,36 +355,32 @@ export default function Sidebar() {
 
           {activeTab === 'visible' && (
             <div className="p-2">
-              {/* 天文情報カード */}
-              <div className="bg-gray-800/50 rounded-lg p-3 mb-3">
-                <p className="text-xs font-medium text-gray-400 mb-2">天文情報</p>
+              <div className={`rounded-lg p-3 mb-3 ${cardBg}`}>
+                <p className={`text-xs font-medium mb-2 ${textMuted}`}>{t('sidebar.astroInfo', lang)}</p>
                 <div className="space-y-1 text-xs">
+                  {([
+                    ['sidebar.sunrise', sunTimes.sunrise],
+                    ['sidebar.sunset', sunTimes.sunset],
+                    ['sidebar.moonrise', moonTimes.rise],
+                    ['sidebar.moonset', moonTimes.set],
+                  ] as const).map(([key, time]) => (
+                    <div key={key} className="flex justify-between">
+                      <span className={textMuted}>{t(key, lang)}</span>
+                      <span className={textBody}>{formatTime(time)}</span>
+                    </div>
+                  ))}
                   <div className="flex justify-between">
-                    <span className="text-gray-500">日の出</span>
-                    <span>{sunTimes.sunrise ? sunTimes.sunrise.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">日の入り</span>
-                    <span>{sunTimes.sunset ? sunTimes.sunset.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">月の出</span>
-                    <span>{moonTimes.rise ? moonTimes.rise.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">月の入り</span>
-                    <span>{moonTimes.set ? moonTimes.set.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">月相</span>
-                    <span>{moonPhase.phaseName}（{Math.round(moonPhase.illumination * 100)}%）</span>
+                    <span className={textMuted}>{t('sidebar.moonPhase', lang)}</span>
+                    <span className={textBody}>
+                      {getMoonPhaseName(moonPhase.phase, lang)}
+                      ({Math.round(moonPhase.illumination * 100)}%)
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* 見える天体一覧 */}
-              <p className="text-xs text-gray-500 px-3 py-1 font-medium">
-                現在見える天体 ({visibleBodies.filter(b => b.isVisible).length})
+              <p className={`text-xs px-3 py-1 font-medium ${textMuted}`}>
+                {t('sidebar.visibleNow', lang)} ({visibleBodies.filter(b => b.isVisible).length})
               </p>
               {visibleBodies
                 .filter(b => b.isVisible)
@@ -365,27 +396,31 @@ export default function Sidebar() {
                       setSelectedBody(body);
                     }}
                     className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
-                      selectedBody?.id === body.id ? 'bg-blue-900/50 border border-blue-500/50' : 'hover:bg-gray-800'
+                      selectedBody?.id === body.id ? selectedBg : hoverBg
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-1.5 py-0.5 rounded ${
-                          body.type === 'star' ? 'bg-yellow-900/50 text-yellow-400' :
-                          body.type === 'planet' ? 'bg-purple-900/50 text-purple-400' :
-                          'bg-gray-700/50 text-gray-400'
+                          body.type === 'star' ? (isDark ? 'bg-yellow-900/50 text-yellow-400' : 'bg-yellow-50 text-yellow-700') :
+                          body.type === 'planet' ? (isDark ? 'bg-purple-900/50 text-purple-400' : 'bg-purple-50 text-purple-700') :
+                          badgeBg
                         }`}>
-                          {body.type === 'star' ? '恒星' : body.type === 'planet' ? '惑星' : body.type === 'moon' ? '月' : ''}
+                          {body.type === 'star' ? t('sidebar.typeStar', lang) :
+                           body.type === 'planet' ? t('sidebar.typePlanet', lang) :
+                           body.type === 'moon' ? t('sidebar.typeMoon', lang) : ''}
                         </span>
-                        <span className="font-medium text-sm">{body.nameJa}</span>
+                        <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {localizedName(body.nameJa, body.nameEn, lang)}
+                        </span>
                       </div>
                       {body.mag != null && (
-                        <span className="text-xs text-gray-500">{body.mag.toFixed(1)}等</span>
+                        <span className={`text-xs ${textMuted}`}>{body.mag.toFixed(1)}{t('sidebar.magnitude', lang)}</span>
                       )}
                     </div>
-                    <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                      {body.alt != null && <span>高度 {body.alt.toFixed(0)}°</span>}
-                      {body.az != null && <span>方位 {body.az.toFixed(0)}°</span>}
+                    <div className={`flex gap-3 mt-1 text-xs ${textMuted}`}>
+                      {body.alt != null && <span>{t('sidebar.altitude', lang)} {body.alt.toFixed(0)}°</span>}
+                      {body.az != null && <span>{t('sidebar.azimuth', lang)} {body.az.toFixed(0)}°</span>}
                     </div>
                   </button>
                 ))}

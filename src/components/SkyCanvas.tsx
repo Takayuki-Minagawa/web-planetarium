@@ -12,6 +12,7 @@ import {
 } from '../utils/astronomy';
 import { planets } from '../data/planets';
 import type { CelestialBody } from '../types/celestial';
+import { t, localizedName, getMoonPhaseName } from '../i18n/translations';
 
 export default function SkyCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,6 +31,7 @@ export default function SkyCanvas() {
     setCenterAlt,
     setFov,
     setSelectedBody,
+    lang,
   } = useAppStore();
 
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
@@ -140,11 +142,11 @@ export default function SkyCanvas() {
           ctx.fillStyle = isSelected ? 'rgba(100, 220, 255, 0.9)' : 'rgba(150, 200, 255, 0.5)';
           ctx.font = isSelected ? 'bold 14px sans-serif' : '12px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(constellation.nameJa, sumX / count, sumY / count - 15);
+          ctx.fillText(localizedName(constellation.nameJa, constellation.nameEn, lang), sumX / count, sumY / count - 15);
         }
       }
     }
-  }, [dateTime, location, centerAz, centerAlt, fov, skySettings.showConstellationNames]);
+  }, [dateTime, location, centerAz, centerAlt, fov, skySettings.showConstellationNames, lang]);
 
   const drawStars = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
     const selectedBody = useAppStore.getState().selectedBody;
@@ -185,10 +187,10 @@ export default function SkyCanvas() {
         ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(200, 220, 255, 0.7)';
         ctx.font = isSelected ? 'bold 12px sans-serif' : '11px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(star.nameJa, p.x + size + 4, p.y + 4);
+        ctx.fillText(localizedName(star.nameJa, star.nameEn, lang), p.x + size + 4, p.y + 4);
       }
     }
-  }, [dateTime, location, centerAz, centerAlt, fov, skySettings.showStarNames]);
+  }, [dateTime, location, centerAz, centerAlt, fov, skySettings.showStarNames, lang]);
 
   const drawPlanets = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
     const selectedBody = useAppStore.getState().selectedBody;
@@ -233,10 +235,10 @@ export default function SkyCanvas() {
         ctx.fillStyle = isSelected ? '#ffffff' : planet.color;
         ctx.font = isSelected ? 'bold 13px sans-serif' : '12px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(`${planet.symbol} ${planet.nameJa}`, p.x + size + 5, p.y + 4);
+        ctx.fillText(`${planet.symbol} ${localizedName(planet.nameJa, planet.nameEn, lang)}`, p.x + size + 5, p.y + 4);
       }
     }
-  }, [dateTime, location, centerAz, centerAlt, fov, skySettings.showPlanetNames]);
+  }, [dateTime, location, centerAz, centerAlt, fov, skySettings.showPlanetNames, lang]);
 
   const drawMoon = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
     const moonPos = getMoonPosition(dateTime, location);
@@ -273,19 +275,19 @@ export default function SkyCanvas() {
     ctx.fillStyle = 'rgba(255, 250, 200, 0.8)';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`☽ ${moonPhase.phaseName}`, p.x + size + 5, p.y + 4);
-  }, [dateTime, location, centerAz, centerAlt, fov]);
+    ctx.fillText(`☽ ${getMoonPhaseName(moonPhase.phase, lang)}`, p.x + size + 5, p.y + 4);
+  }, [dateTime, location, centerAz, centerAlt, fov, lang]);
 
   const drawCardinalDirections = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
     const directions = [
-      { az: 0, label: '北' },
-      { az: 45, label: '北東' },
-      { az: 90, label: '東' },
-      { az: 135, label: '南東' },
-      { az: 180, label: '南' },
-      { az: 225, label: '南西' },
-      { az: 270, label: '西' },
-      { az: 315, label: '北西' },
+      { az: 0, key: 'dir.n' as const },
+      { az: 45, key: 'dir.ne' as const },
+      { az: 90, key: 'dir.e' as const },
+      { az: 135, key: 'dir.se' as const },
+      { az: 180, key: 'dir.s' as const },
+      { az: 225, key: 'dir.sw' as const },
+      { az: 270, key: 'dir.w' as const },
+      { az: 315, key: 'dir.nw' as const },
     ];
 
     const halfFov = fov / 2;
@@ -303,10 +305,10 @@ export default function SkyCanvas() {
         ctx.font = isMain ? 'bold 16px sans-serif' : '12px sans-serif';
         ctx.textAlign = 'center';
         const textY = Math.min(Math.max(y + 25, 30), h - 10);
-        ctx.fillText(dir.label, x, textY);
+        ctx.fillText(t(dir.key, lang), x, textY);
       }
     }
-  }, [centerAz, centerAlt, fov]);
+  }, [centerAz, centerAlt, fov, lang]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
