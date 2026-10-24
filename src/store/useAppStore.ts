@@ -107,15 +107,36 @@ export function isDesktop(): boolean {
 }
 
 // 保存内容が変わったときだけ書き込む（早送り中など頻繁な更新で localStorage を叩かないように）
+// ストレージが使えない環境（プライベートモード等）では保存せずに動作を続ける
 let lastSaved = '';
+if (typeof window !== 'undefined') {
+  // 別タブが書き換えたら、次の書き込みを省略しない
+  window.addEventListener('storage', () => { lastSaved = ''; });
+}
 const dedupedStorage = createJSONStorage(() => ({
-  getItem: (name) => localStorage.getItem(name),
+  getItem: (name) => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
   setItem: (name, value) => {
     if (value === lastSaved) return;
-    lastSaved = value;
-    localStorage.setItem(name, value);
+    try {
+      localStorage.setItem(name, value);
+      lastSaved = value;
+    } catch {
+      // 保存できなくてもアプリは動作させる
+    }
   },
-  removeItem: (name) => localStorage.removeItem(name),
+  removeItem: (name) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // 同上
+    }
+  },
 }));
 
 let flyFrame = 0;
