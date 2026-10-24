@@ -3,6 +3,7 @@ import SunCalc from 'suncalc';
 import { stars } from '../data/stars';
 import { planets } from '../data/planets';
 import type { ObserverLocation, CelestialBody } from '../types/celestial';
+import { getMoonPhaseName } from '../i18n/translations';
 
 const PLANET_BODY_MAP: Record<string, Astronomy.Body> = {
   mercury: Astronomy.Body.Mercury,
@@ -17,18 +18,20 @@ export interface HorizontalPosition {
   az: number;  // azimuth in degrees
 }
 
-// 赤経・赤緯から地平座標（高度・方位）に変換
-export function equatorialToHorizontal(
+// グリニッジ恒星時（時）。同じ日時で多数の天体を変換するときは一度だけ計算して使い回す
+export function siderealTime(date: Date): number {
+  return Astronomy.SiderealTime(Astronomy.MakeTime(date));
+}
+
+// 恒星時を指定して赤経・赤緯から地平座標（高度・方位）に変換
+export function equatorialToHorizontalAt(
   ra: number,   // 赤経 (時)
   dec: number,  // 赤緯 (度)
-  date: Date,
+  gst: number,  // グリニッジ恒星時 (時)
   location: ObserverLocation
 ): HorizontalPosition {
-  const time = Astronomy.MakeTime(date);
-  // 恒星時を計算
-  const lst = Astronomy.SiderealTime(time);
   // 時角 = 恒星時 - 赤経 + 経度/15
-  let ha = lst - ra + location.longitude / 15;
+  let ha = gst - ra + location.longitude / 15;
   // 0-24時の範囲に正規化
   ha = ((ha % 24) + 24) % 24;
   // 時角をラジアンに
@@ -47,6 +50,16 @@ export function equatorialToHorizontal(
   az = ((az % 360) + 360) % 360;
 
   return { alt, az };
+}
+
+// 赤経・赤緯から地平座標（高度・方位）に変換
+export function equatorialToHorizontal(
+  ra: number,   // 赤経 (時)
+  dec: number,  // 赤緯 (度)
+  date: Date,
+  location: ObserverLocation
+): HorizontalPosition {
+  return equatorialToHorizontalAt(ra, dec, siderealTime(date), location);
 }
 
 function makeObserver(location: ObserverLocation): Astronomy.Observer {
@@ -130,10 +143,11 @@ export function getSkyState(date: Date, location: ObserverLocation): 'night' | '
 // 現在見えている天体リストを生成
 export function getVisibleBodies(date: Date, location: ObserverLocation): CelestialBody[] {
   const bodies: CelestialBody[] = [];
+  const gst = siderealTime(date);
 
   // 恒星の可視性チェック
   for (const star of stars) {
-    const pos = equatorialToHorizontal(star.ra, star.dec, date, location);
+    const pos = equatorialToHorizontalAt(star.ra, star.dec, gst, location);
     if (pos.alt > 0 && star.mag < 3.0) {
       bodies.push({
         id: star.id,
@@ -147,6 +161,7 @@ export function getVisibleBodies(date: Date, location: ObserverLocation): Celest
         mag: star.mag,
         isVisible: true,
         description: star.description,
+        descriptionEn: star.descriptionEn,
       });
     }
   }
@@ -168,6 +183,7 @@ export function getVisibleBodies(date: Date, location: ObserverLocation): Celest
         mag: planetPos.mag,
         isVisible: horizPos.alt > 0,
         description: planet.description,
+        descriptionEn: planet.descriptionEn,
       });
     }
   }
@@ -187,13 +203,37 @@ export function getVisibleBodies(date: Date, location: ObserverLocation): Celest
     az: moonHoriz.az,
     isVisible: moonHoriz.alt > 0,
     description: `${moonPhase.phaseName}（${Math.round(moonPhase.illumination * 100)}%）`,
-    descriptionEn: `${moonPhase.phaseName} (${Math.round(moonPhase.illumination * 100)}%)`,
+    descriptionEn: `${getMoonPhaseName(moonPhase.phase, 'en')} (${Math.round(moonPhase.illumination * 100)}%)`,
   });
 
   return bodies;
 }
 
-// 星の赤道座標をステレオ投影でキャンバス座標に変換
+// 地平座標をキャンバス座標に変換（視野外なら inView = false）
+export function projectHorizontal(
+  alt: number,
+  az: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  centerAz: number,
+  centerAlt: number,
+  fov: number
+): { x: number; y: number; inView: boolean } {
+  // 中心からの角度差を計算（方位は -180〜180 に正規化）
+  const normalizedDAz = ((((az - centerAz) % 360) + 540) % 360) - 180;
+  const dAlt = alt - centerAlt;
+
+  const halfFov = fov / 2;
+  const aspectRatio = canvasWidth / canvasHeight;
+
+  const x = canvasWidth / 2 + (normalizedDAz / (halfFov * aspectRatio)) * (canvasWidth / 2);
+  const y = canvasHeight / 2 - (dAlt / halfFov) * (canvasHeight / 2);
+  const inView = Math.abs(normalizedDAz) <= halfFov * aspectRatio && Math.abs(dAlt) <= halfFov;
+
+  return { x, y, inView };
+}
+
+// 星の赤道座標をキャンバス座標に変換
 export function projectStar(
   ra: number,
   dec: number,
@@ -206,25 +246,28 @@ export function projectStar(
   fov: number
 ): { x: number; y: number; visible: boolean } {
   const pos = equatorialToHorizontal(ra, dec, date, location);
-
-  // 中心からの角度差を計算
-  const dAz = pos.az - centerAz;
-  const dAlt = pos.alt - centerAlt;
-
-  // 正規化
-  const normalizedDAz = ((dAz + 180) % 360) - 180;
-
-  // FOV内かチェック
-  const halfFov = fov / 2;
-  const aspectRatio = canvasWidth / canvasHeight;
-
-  if (Math.abs(normalizedDAz) > halfFov * aspectRatio || Math.abs(dAlt) > halfFov) {
-    return { x: -1, y: -1, visible: false };
-  }
-
-  // キャンバス座標に変換
-  const x = canvasWidth / 2 + (normalizedDAz / (halfFov * aspectRatio)) * (canvasWidth / 2);
-  const y = canvasHeight / 2 - (dAlt / halfFov) * (canvasHeight / 2);
-
-  return { x, y, visible: pos.alt > -2 };
+  const p = projectHorizontal(pos.alt, pos.az, canvasWidth, canvasHeight, centerAz, centerAlt, fov);
+  if (!p.inView) return { x: -1, y: -1, visible: false };
+  return { x: p.x, y: p.y, visible: pos.alt > -2 };
 }
+
+// 天の川（銀河面）に沿った点の赤道座標。intensity は銀河中心（いて座方向）ほど大きい
+export const milkyWayPoints: { ra: number; dec: number; intensity: number }[] = (() => {
+  const RA_NGP = 192.85948 * Astronomy.DEG2RAD;
+  const DEC_NGP = 27.12825 * Astronomy.DEG2RAD;
+  const L_NCP = 122.93192 * Astronomy.DEG2RAD;
+  const points: { ra: number; dec: number; intensity: number }[] = [];
+  for (let lDeg = 0; lDeg < 360; lDeg += 2.5) {
+    const l = lDeg * Astronomy.DEG2RAD;
+    const b = 0;
+    const sinDec = Math.sin(DEC_NGP) * Math.sin(b) + Math.cos(DEC_NGP) * Math.cos(b) * Math.cos(L_NCP - l);
+    const dec = Math.asin(sinDec);
+    const y = Math.cos(b) * Math.sin(L_NCP - l);
+    const x = Math.cos(DEC_NGP) * Math.sin(b) - Math.sin(DEC_NGP) * Math.cos(b) * Math.cos(L_NCP - l);
+    let ra = (RA_NGP + Math.atan2(y, x)) * Astronomy.RAD2DEG;
+    ra = ((ra % 360) + 360) % 360;
+    const intensity = 0.35 + 0.65 * Math.pow(Math.cos(l / 2), 2);
+    points.push({ ra: ra / 15, dec: dec * Astronomy.RAD2DEG, intensity });
+  }
+  return points;
+})();
