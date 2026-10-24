@@ -64,5 +64,6 @@ export interface SkySettings {
   showPlanetNames: boolean;
   showHorizon: boolean;
   showGrid: boolean;
+  showMilkyWay: boolean;
   backgroundBrightness: number;
 }

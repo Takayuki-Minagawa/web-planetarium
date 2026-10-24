@@ -1,29 +1,182 @@
 @import "tailwindcss";
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ─── デザイントークン ───────────────────────────────
+   夜空の藍色をベースに、星明かりの金色をアクセントに使う */
+@theme inline {
+  --font-sans: "Inter", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, "Menlo", monospace;
+
+  --color-app: var(--app);
+  --color-surface: var(--surface);
+  --color-surface-solid: var(--surface-solid);
+  --color-raised: var(--raised);
+  --color-sky-chip: #0f1433;
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-nebula: var(--nebula);
+  --color-nebula-soft: var(--nebula-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-off: var(--off);
+  --color-off-soft: var(--off-soft);
+  --color-spring: var(--spring);
+  --color-summer: var(--summer);
+  --color-autumn: var(--autumn);
+  --color-winter: var(--winter);
+
+  --shadow-panel: var(--panel-shadow);
 }
 
-html, body, #root {
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --app: #050816;
+  --surface: rgb(12 16 36 / 0.84);
+  --surface-solid: #0d1126;
+  --raised: rgb(255 255 255 / 0.045);
+  --hover: rgb(255 255 255 / 0.07);
+  --line: rgb(165 180 255 / 0.13);
+  --ink: #eef0ff;
+  --muted: #a3abcf;
+  --faint: #6f78a0;
+  --accent: #f6c870;
+  --accent-soft: rgb(246 200 112 / 0.14);
+  --accent-ink: #1c1405;
+  --nebula: #9db0ff;
+  --nebula-soft: rgb(124 146 255 / 0.15);
+  --ok: #7ee2b0;
+  --ok-soft: rgb(126 226 176 / 0.12);
+  --off: #a3abcf;
+  --off-soft: rgb(163 171 207 / 0.12);
+  --spring: #f7a8c8;
+  --summer: #6fd8d0;
+  --autumn: #f2b36b;
+  --winter: #9ec9ff;
+  --panel-shadow: 0 10px 40px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(165 180 255 / 0.06) inset;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --app: #eef0f8;
+  --surface: rgb(255 255 255 / 0.86);
+  --surface-solid: #ffffff;
+  --raised: rgb(30 40 100 / 0.04);
+  --hover: rgb(30 40 100 / 0.07);
+  --line: rgb(30 40 100 / 0.12);
+  --ink: #171b36;
+  --muted: #545b7c;
+  --faint: #7a809c;
+  --accent: #a8650c;
+  --accent-soft: rgb(196 128 30 / 0.13);
+  --accent-ink: #ffffff;
+  --nebula: #4453c4;
+  --nebula-soft: rgb(68 83 196 / 0.1);
+  --ok: #157a4b;
+  --ok-soft: rgb(21 122 75 / 0.1);
+  --off: #5c6280;
+  --off-soft: rgb(92 98 128 / 0.1);
+  --spring: #c2457a;
+  --summer: #0f8a83;
+  --autumn: #b0660f;
+  --winter: #2f6fbf;
+  --panel-shadow: 0 10px 40px -14px rgb(30 40 100 / 0.35);
+}
+
+html,
+body,
+#root {
   width: 100%;
   height: 100%;
 }
 
-::-webkit-scrollbar {
+body {
+  background: var(--app);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* キーボード操作時のフォーカスを明確に */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ガラス調パネル（ユーティリティで上書きできるよう components レイヤーに置く） */
+@layer components {
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* スクロールバー */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
   width: 6px;
 }
-
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line);
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+/* ─── アニメーション ─────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+@keyframes sparkle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in { animation: fade-in 0.25s ease-out both; }
+.animate-rise-in { animation: rise-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.animate-drop-in { animation: drop-in 0.4s cubic-bezier(0.2, 0.9, 0.25, 1.2) both; }
+.animate-pop { animation: pop 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.2) both; }
+.animate-twinkle { animation: twinkle 3s ease-in-out infinite; }
+.animate-sparkle { animation: sparkle-spin 6s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
