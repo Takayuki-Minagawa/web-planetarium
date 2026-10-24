@@ -105,6 +105,8 @@ export default function SkyCanvas() {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef({ startX: 0, startY: 0, moved: false, pinchDist: 0, pinchFov: 0 });
   const suppressClick = useRef(false);
+  // 再描画が必要か（動きを減らす設定のときは変化があったときだけ描く）
+  const dirtyRef = useRef(true);
 
   const lang = useAppStore((s) => s.lang);
 
@@ -175,6 +177,7 @@ export default function SkyCanvas() {
     const mwAlpha = MILKY_WAY_ALPHA[model.skyState] * (1 - skySettings.backgroundBrightness * 0.7);
     if (skySettings.showMilkyWay && mwAlpha > 0) {
       ctx.globalCompositeOperation = 'lighter';
+      const glow = getGlowSprite();
       const wide = pxPerDeg * 12;
       const core = pxPerDeg * 5.5;
       for (const p of model.milkyWay) {
@@ -182,13 +185,11 @@ export default function SkyCanvas() {
         const { x, y } = proj(p.alt, p.az);
         if (x < -wide || x > w + wide || y < -wide || y > h + wide) continue;
         for (const [radius, a] of [[wide, 0.035], [core, 0.045]] as const) {
-          const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
-          g.addColorStop(0, `rgba(190, 200, 255, ${a * p.intensity * mwAlpha})`);
-          g.addColorStop(1, 'rgba(190, 200, 255, 0)');
-          ctx.fillStyle = g;
-          ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+          ctx.globalAlpha = a * p.intensity * mwAlpha;
+          ctx.drawImage(glow, x - radius, y - radius, radius * 2, radius * 2);
         }
       }
+      ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
 
@@ -487,6 +488,7 @@ export default function SkyCanvas() {
       sizeRef.current = { w: rect.width, h: rect.height, dpr };
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
+      dirtyRef.current = true;
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -498,12 +500,23 @@ export default function SkyCanvas() {
   useEffect(() => {
     let frame = 0;
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const markDirty = () => { dirtyRef.current = true; };
+    const unsubscribe = useAppStore.subscribe(markDirty);
+    media.addEventListener('change', markDirty);
     const render = (now: number) => {
-      draw(now, media.matches);
+      // またたきや脈打つリングがあるときは毎フレーム、ないときは変化時のみ描画
+      if (!media.matches || dirtyRef.current) {
+        dirtyRef.current = false;
+        draw(now, media.matches);
+      }
       frame = requestAnimationFrame(render);
     };
     frame = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      unsubscribe();
+      media.removeEventListener('change', markDirty);
+    };
   }, [draw]);
 
   // ─── ホイールでズーム（passive: false で登録） ───────────
@@ -562,6 +575,7 @@ export default function SkyCanvas() {
       if (e.pointerType === 'mouse') {
         const { x, y } = localPoint(e);
         const id = hitTest(x, y);
+        if (id !== hoverRef.current) dirtyRef.current = true;
         hoverRef.current = id;
         e.currentTarget.style.cursor = id ? 'pointer' : 'grab';
       }
@@ -601,6 +615,7 @@ export default function SkyCanvas() {
   }, []);
 
   const handlePointerLeave = useCallback(() => {
+    if (hoverRef.current) dirtyRef.current = true;
     hoverRef.current = null;
   }, []);
 
@@ -641,7 +656,7 @@ export default function SkyCanvas() {
       tabIndex={0}
       role="application"
       aria-label={t('canvas.label', lang)}
-      className="block w-full h-full cursor-grab touch-none select-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-4"
+      className="block w-full h-full cursor-grab touch-none select-none focus-visible:-outline-offset-4"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -651,6 +666,23 @@ export default function SkyCanvas() {
       onKeyDown={handleKeyDown}
     />
   );
+}
+
+// 天の川用のぼかし円。毎フレームのグラデーション生成を避けるため一度だけ作って使い回す
+let glowSprite: HTMLCanvasElement | null = null;
+function getGlowSprite(): HTMLCanvasElement {
+  if (glowSprite) return glowSprite;
+  const size = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(190, 200, 255, 1)');
+  grad.addColorStop(1, 'rgba(190, 200, 255, 0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  glowSprite = c;
+  return c;
 }
 
 // 選択中の天体を示す脈打つリング

@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../store/useAppStore';
 import { stars } from '../data/stars';
 import { planets } from '../data/planets';
 import { specialBodies } from '../data/planets';
 import { getMoonPhase } from '../utils/astronomy';
-import { constellationById, starById, constellationBody, starBody, textSymbol } from '../utils/bodies';
+import { constellationById, starById, constellationBody, starBody, textSymbol, bodyById } from '../utils/bodies';
 import {
   t, localizedName, getMoonPhaseName, directionName, altitudeDescription, brightnessDescription, type TranslationKey,
 } from '../i18n/translations';
@@ -26,20 +26,29 @@ function formatRA(ra: number | undefined): string {
 }
 
 export default function DetailPanel() {
-  const { selectedBody, setSelectedBody, focusBody, lang, dateTime, location } = useAppStore(useShallow((s) => ({
-    selectedBody: s.selectedBody,
+  const { picked, setSelectedBody, focusBody, lang, dateTime, location } = useAppStore(useShallow((s) => ({
+    picked: s.selectedBody,
     setSelectedBody: s.setSelectedBody,
     focusBody: s.focusBody,
     lang: s.lang,
-    dateTime: s.dateTime,
+    dateTime: s.panelDateTime,
     location: s.location,
   })));
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 時刻が進んでも位置・見え方が最新になるよう、選択時の値ではなく現在の日時で計算し直す
+  const selectedBody = useMemo(
+    () => (picked ? (bodyById(picked.id, dateTime, location) ?? picked) : null),
+    [picked, dateTime, location]
+  );
+
   // 別の天体を選んだら先頭までスクロール
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
-  }, [selectedBody?.id]);
+  }, [picked?.id]);
+
+  // クリック時点の正確な日時（パネル表示用の日時は早送り中に間引かれるため）
+  const at = () => useAppStore.getState().dateTime;
 
   if (!selectedBody) return null;
 
@@ -94,8 +103,8 @@ export default function DetailPanel() {
       key={selectedBody.id}
       aria-label={localizedName(selectedBody.nameJa, selectedBody.nameEn, lang)}
       className="panel fixed z-40 text-ink overflow-hidden flex flex-col animate-rise-in
-        inset-x-0 bottom-0 max-h-[58vh] rounded-t-3xl bg-surface-solid md:bg-surface
-        md:inset-x-auto md:bottom-4 md:right-4 md:w-[23rem] md:max-h-[calc(100vh-17rem)] md:rounded-3xl"
+        inset-x-0 bottom-0 max-h-[58dvh] rounded-t-3xl bg-surface-solid md:bg-surface
+        md:inset-x-auto md:bottom-4 md:right-4 md:w-[23rem] md:max-h-[calc(100dvh-17rem)] md:rounded-3xl"
     >
       {/* Mobile handle */}
       <div className="md:hidden flex justify-center pt-2" aria-hidden="true">
@@ -234,7 +243,7 @@ export default function DetailPanel() {
               id: s.id,
               label: localizedName(s.nameJa, s.nameEn, lang),
               color: s.color,
-              onClick: () => focusBody(starBody(s, dateTime, location)),
+              onClick: () => focusBody(starBody(s, at(), location)),
             }))}
           />
         )}
@@ -246,7 +255,7 @@ export default function DetailPanel() {
                 id: parentConstellation.id,
                 label: localizedName(parentConstellation.nameJa, parentConstellation.nameEn, lang),
                 onClick: () => {
-                  const body = constellationBody(parentConstellation, dateTime, location);
+                  const body = constellationBody(parentConstellation, at(), location);
                   if (body) focusBody(body);
                 },
               },
@@ -254,7 +263,7 @@ export default function DetailPanel() {
                 id: s.id,
                 label: localizedName(s.nameJa, s.nameEn, lang),
                 color: s.color,
-                onClick: () => focusBody(starBody(s, dateTime, location)),
+                onClick: () => focusBody(starBody(s, at(), location)),
               })),
             ]}
           />

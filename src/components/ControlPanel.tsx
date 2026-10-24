@@ -59,7 +59,8 @@ export default function ControlPanel() {
       if (!rootRef.current?.contains(e.target as Node)) setPopover(null);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPopover(null);
+      // モーダルが開いているときの Esc はモーダルだけを閉じる
+      if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) setPopover(null);
     };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
@@ -302,8 +303,14 @@ export default function ControlPanel() {
                     className={inputCls}
                     onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                     onBlur={(e) => {
-                      const v = parseFloat(e.target.value);
-                      if (!isNaN(v) && v !== location[field]) setLocation({ ...location, [field]: v, name: undefined });
+                      const raw = parseFloat(e.target.value);
+                      if (isNaN(raw)) return;
+                      // 極点ちょうどや範囲外の値では天体計算が破綻するため丸める
+                      const v = field === 'latitude'
+                        ? Math.max(-89.9, Math.min(89.9, raw))
+                        : ((((raw + 180) % 360) + 360) % 360) - 180;
+                      e.target.value = String(v);
+                      if (v !== location[field]) setLocation({ ...location, [field]: v, name: undefined });
                     }}
                   />
                 </label>
@@ -360,7 +367,7 @@ export default function ControlPanel() {
 
 function PopoverCard({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <div className="panel bg-surface-solid rounded-2xl p-3 w-[min(18rem,calc(100vw-1.5rem))] max-h-[calc(100vh-15rem)] overflow-y-auto scroll-thin animate-rise-in">
+    <div className="panel bg-surface-solid rounded-2xl p-3 w-[min(18rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-15rem)] overflow-y-auto scroll-thin animate-rise-in">
       <p className="text-sm font-semibold mb-2 flex items-center gap-2 px-1">
         <span className="text-accent">{icon}</span>
         {title}

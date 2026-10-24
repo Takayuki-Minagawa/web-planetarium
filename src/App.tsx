@@ -41,8 +41,8 @@ function App() {
     const step = (now: number) => {
       const dt = now - last;
       if (dt >= 33) {
-        const { dateTime, setDateTime } = useAppStore.getState();
-        setDateTime(new Date(dateTime.getTime() + dt * TIMELAPSE_MINUTES_PER_SECOND * 60));
+        const { dateTime, advanceTime } = useAppStore.getState();
+        advanceTime(new Date(dateTime.getTime() + dt * TIMELAPSE_MINUTES_PER_SECOND * 60));
         last = now;
       }
       frame = requestAnimationFrame(step);

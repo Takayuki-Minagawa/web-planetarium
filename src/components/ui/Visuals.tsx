@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import type { Constellation } from '../../types/celestial';
 import { starById } from '../../utils/bodies';
 import { t, type Lang } from '../../i18n/translations';
@@ -8,15 +8,16 @@ import { moonLitPath } from '../../utils/moonPath';
 
 export function MoonPhaseIcon({ phase, size = 40, className }: { phase: number; size?: number; className?: string }) {
   const r = 10;
+  const glowId = useId();
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className={className}>
       <defs>
-        <radialGradient id="moon-glow" cx="50%" cy="50%" r="50%">
+        <radialGradient id={glowId} cx="50%" cy="50%" r="50%">
           <stop offset="70%" stopColor="#fff6d6" stopOpacity="0.25" />
           <stop offset="100%" stopColor="#fff6d6" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <circle cx="12" cy="12" r="12" fill="url(#moon-glow)" />
+      <circle cx="12" cy="12" r="12" fill={`url(#${glowId})`} />
       <circle cx="12" cy="12" r={r} fill="#2a2f4a" stroke="rgb(255 246 214 / 0.25)" strokeWidth="0.5" />
       <path d={moonLitPath(phase, 12, 12, r)} fill="#fff3c9" />
     </svg>

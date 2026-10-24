@@ -29,8 +29,13 @@ const DECOR_STARS = Array.from({ length: 28 }, (_, i) => ({
 }));
 
 export default function WelcomeModal() {
-  const { welcomeOpen, setWelcomeOpen, dateTime, location, lang, setDateTime, focusBody } = useAppStore(useShallow((s) => ({
-    welcomeOpen: s.welcomeOpen,
+  const welcomeOpen = useAppStore((s) => s.welcomeOpen);
+  // 閉じているときは「今夜の見どころ」の計算もしない
+  return welcomeOpen ? <WelcomeContent /> : null;
+}
+
+function WelcomeContent() {
+  const { setWelcomeOpen, dateTime, location, lang, setDateTime, focusBody } = useAppStore(useShallow((s) => ({
     setWelcomeOpen: s.setWelcomeOpen,
     dateTime: s.dateTime,
     location: s.location,
@@ -72,8 +77,6 @@ export default function WelcomeModal() {
 
     return { isLight, target, moon, phase, planetsUp, brightest, constellation: cons[0] };
   }, [dateTime, location]);
-
-  if (!welcomeOpen) return null;
 
   const close = () => setWelcomeOpen(false);
   const go = (body: CelestialBody) => {

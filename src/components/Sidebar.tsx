@@ -61,7 +61,7 @@ export default function Sidebar() {
     activeTab: s.activeTab,
     setActiveTab: s.setActiveTab,
     location: s.location,
-    dateTime: s.dateTime,
+    dateTime: s.panelDateTime,
     focusBody: s.focusBody,
     selectedBody: s.selectedBody,
     lang: s.lang,
@@ -78,6 +78,9 @@ export default function Sidebar() {
     { id: 'planets', labelKey: 'tab.planets', icon: <IconPlanet size={18} /> },
     { id: 'visible', labelKey: 'tab.visible', icon: <IconEye size={18} /> },
   ];
+
+  // クリック時点の正確な日時（パネル表示用の日時は早送り中に間引かれるため）
+  const at = () => useAppStore.getState().dateTime;
 
   // 選択して視点を移動。スマホではメニューを閉じて星空を見せる
   const select = (body: CelestialBody | null) => {
@@ -137,7 +140,7 @@ export default function Sidebar() {
     const all = [...DISCOVERY_IDS.constellation, ...DISCOVERY_IDS.star, ...DISCOVERY_IDS.solar];
     const undiscovered = all.filter((id) => !discoveredSet.has(id));
     const pool = undiscovered.length > 0 ? undiscovered : all;
-    const bodies = pool.map((id) => bodyById(id, dateTime, location)).filter((b): b is CelestialBody => !!b);
+    const bodies = pool.map((id) => bodyById(id, at(), location)).filter((b): b is CelestialBody => !!b);
     // 地平線すれすれは見つけにくいので、ある程度の高さがあるものを優先
     const up = bodies.filter((b) => (b.alt ?? -90) > 10 && b.id !== selectedBody?.id);
     const candidates = up.length > 0 ? up : bodies;
@@ -243,14 +246,26 @@ export default function Sidebar() {
 
         {/* Tabs */}
         <div role="tablist" aria-label={t('app.title', lang)} className="mx-4 mb-2 grid grid-cols-4 gap-1 rounded-xl bg-raised p-1 border border-line">
-          {tabs.map(tab => {
+          {tabs.map((tab, i) => {
             const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                id={`tab-${tab.id}`}
                 role="tab"
                 aria-selected={active}
+                aria-controls="sidebar-tabpanel"
+                tabIndex={active ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
+                onKeyDown={(e) => {
+                  // 矢印キーでタブを移動（WAI-ARIA タブパターン）
+                  const delta = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+                  if (!delta) return;
+                  e.preventDefault();
+                  const next = tabs[(i + delta + tabs.length) % tabs.length];
+                  setActiveTab(next.id);
+                  document.getElementById(`tab-${next.id}`)?.focus();
+                }}
                 className={`relative flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition-all duration-200 ${
                   active ? 'bg-surface-solid text-accent shadow-sm' : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
@@ -264,7 +279,7 @@ export default function Sidebar() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto scroll-thin px-2 pb-4" role="tabpanel">
+        <div id="sidebar-tabpanel" className="flex-1 overflow-y-auto scroll-thin px-2 pb-4" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
           {activeTab === 'constellations' && (
             <div key="c" className="animate-fade-in">
               <div className="flex gap-1.5 px-2 pb-2 overflow-x-auto scroll-thin" role="group">
@@ -295,7 +310,7 @@ export default function Sidebar() {
                     selected={isSelected}
                     discovered={discoveredSet.has(c.id)}
                     lang={lang}
-                    onClick={() => select(constellationBody(c, dateTime, location))}
+                    onClick={() => select(constellationBody(c, at(), location))}
                     leading={
                       <span className={`flex items-center justify-center w-12 h-12 rounded-xl border transition-colors ${isSelected ? 'bg-accent-soft border-accent/40' : 'bg-raised border-line group-hover:border-nebula/40'}`}>
                         <ConstellationThumb constellation={c} size={42} highlight={isSelected} />
@@ -331,7 +346,7 @@ export default function Sidebar() {
                     selected={isSelected}
                     discovered={discoveredSet.has(s.id)}
                     lang={lang}
-                    onClick={() => select(starBody(s, dateTime, location))}
+                    onClick={() => select(starBody(s, at(), location))}
                     leading={
                       <span className="flex items-center justify-center w-10 h-10 rounded-full bg-sky-chip">
                         <span
@@ -361,7 +376,7 @@ export default function Sidebar() {
                     selected={selectedBody?.id === b.id}
                     discovered={discoveredSet.has(b.id)}
                     lang={lang}
-                    onClick={() => select(specialBody(b, dateTime, location))}
+                    onClick={() => select(specialBody(b, at(), location))}
                     leading={
                       <span className="flex items-center justify-center w-10 h-10 rounded-full bg-sky-chip">
                         {b.id === 'moon'
@@ -385,7 +400,7 @@ export default function Sidebar() {
                     selected={selectedBody?.id === p.id}
                     discovered={discoveredSet.has(p.id)}
                     lang={lang}
-                    onClick={() => select(planetBody(p, dateTime, location))}
+                    onClick={() => select(planetBody(p, at(), location))}
                     leading={
                       <span
                         className="flex items-center justify-center w-10 h-10 rounded-full text-lg font-semibold bg-sky-chip"

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ObserverLocation, SkySettings, CelestialBody } from '../types/celestial';
 import type { Lang } from '../i18n/translations';
 import { DISCOVERY_IDS, discoveryCategoryOf, type DiscoveryCategory } from '../utils/bodies';
@@ -34,6 +34,10 @@ interface AppState {
   // 現在時刻に追従しているか（日時を操作すると false になる）
   live: boolean;
   tickNow: () => void;
+  // パネル表示用の日時。早送り中は描画負荷を抑えるため間引いて更新する
+  panelDateTime: Date;
+  // 早送りで時間を進める（キャンバスは毎フレーム、パネルは間引き）
+  advanceTime: (date: Date) => void;
 
   // 時間の早送り（タイムラプス）
   playing: boolean;
@@ -102,7 +106,21 @@ export function isDesktop(): boolean {
   return typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches;
 }
 
+// 保存内容が変わったときだけ書き込む（早送り中など頻繁な更新で localStorage を叩かないように）
+let lastSaved = '';
+const dedupedStorage = createJSONStorage(() => ({
+  getItem: (name) => localStorage.getItem(name),
+  setItem: (name, value) => {
+    if (value === lastSaved) return;
+    lastSaved = value;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name) => localStorage.removeItem(name),
+}));
+
 let flyFrame = 0;
+let lastPanelSync = 0;
+const PANEL_SYNC_MS = 500;
 
 const easeInOutCubic = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
@@ -120,13 +138,29 @@ export const useAppStore = create<AppState>()(
       setLocation: (location) => set({ location }),
 
       dateTime: new Date(),
-      setDateTime: (dateTime) => set({ dateTime, live: false }),
-      resetToNow: () => set({ dateTime: new Date(), playing: false, live: true }),
+      setDateTime: (dateTime) => set({ dateTime, panelDateTime: dateTime, live: false }),
+      resetToNow: () => {
+        const now = new Date();
+        set({ dateTime: now, panelDateTime: now, playing: false, live: true });
+      },
       live: true,
-      tickNow: () => set({ dateTime: new Date() }),
+      tickNow: () => {
+        const now = new Date();
+        set({ dateTime: now, panelDateTime: now });
+      },
+      panelDateTime: new Date(),
+      advanceTime: (dateTime) => {
+        const now = performance.now();
+        if (now - lastPanelSync >= PANEL_SYNC_MS) {
+          lastPanelSync = now;
+          set({ dateTime, panelDateTime: dateTime, live: false });
+        } else {
+          set({ dateTime, live: false });
+        }
+      },
 
       playing: false,
-      setPlaying: (playing) => set({ playing }),
+      setPlaying: (playing) => set((state) => (playing ? { playing } : { playing, panelDateTime: state.dateTime })),
 
       selectedBody: null,
       setSelectedBody: (selectedBody) => {
@@ -156,7 +190,9 @@ export const useAppStore = create<AppState>()(
       },
       focusBody: (body) => {
         if (body.az != null && body.alt != null) {
-          get().flyTo(body.az, Math.max(0, body.alt));
+          // スマホでは下から詳細シートが出るので、天体が画面の上寄りに来るよう視点を下げる
+          const offset = isDesktop() ? 0 : get().fov * 0.22;
+          get().flyTo(body.az, Math.max(0, body.alt) - offset);
         }
         get().setSelectedBody(body);
       },
@@ -190,8 +226,9 @@ export const useAppStore = create<AppState>()(
         set({ fov: 120 });
         get().flyTo(180, 45);
       },
-      flyTo: (az, alt) => {
+      flyTo: (az, targetAlt) => {
         cancelAnimationFrame(flyFrame);
+        const alt = Math.max(-10, Math.min(90, targetAlt));
         const { setCenterAz, setCenterAlt } = get();
         if (prefersReducedMotion()) {
           setCenterAz(az);
@@ -231,6 +268,7 @@ export const useAppStore = create<AppState>()(
     {
       name: 'web-planetarium',
       version: 1,
+      storage: dedupedStorage,
       partialize: (state) => ({
         lang: state.lang,
         theme: state.theme,

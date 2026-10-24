@@ -25,11 +25,15 @@ export default function DiscoveryToast() {
   const found = discovered.filter((id) => ALL_IDS.has(id)).length;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-[10.5rem] md:top-4 z-[60] flex justify-center px-4" aria-live="polite" role="status">
+    <div
+      className="pointer-events-none fixed z-[60] flex justify-center px-4 inset-x-0 bottom-[calc(58dvh+0.75rem)] md:inset-x-auto md:left-4 md:bottom-4 md:px-0 md:w-72"
+      aria-live="polite"
+      role="status"
+    >
       {toast && (
         <div
           key={toast.key}
-          className={`pointer-events-auto panel rounded-2xl pl-2 pr-4 py-2 flex items-center gap-3 animate-drop-in max-w-sm ${
+          className={`pointer-events-auto panel bg-surface-solid rounded-2xl pl-2 pr-4 py-2 flex items-center gap-3 animate-rise-in max-w-sm w-full ${
             toast.completed ? 'border-accent/60' : ''
           }`}
           onClick={dismissToast}

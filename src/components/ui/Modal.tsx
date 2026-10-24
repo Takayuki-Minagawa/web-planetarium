@@ -60,7 +60,7 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`relative w-full max-h-[92vh] sm:max-h-[86vh] overflow-y-auto scroll-thin rounded-t-3xl sm:rounded-3xl border border-line bg-surface-solid text-ink shadow-panel animate-rise-in ${className}`}
+        className={`relative w-full max-h-[92dvh] sm:max-h-[86dvh] overflow-y-auto scroll-thin rounded-t-3xl sm:rounded-3xl border border-line bg-surface-solid text-ink shadow-panel animate-rise-in ${className}`}
       >
         {children}
       </div>
